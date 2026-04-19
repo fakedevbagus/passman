@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import argon2 from 'argon2';
 import { pool } from '../lib/db';
 import { generateToken } from '../middleware/auth';
+import { userRepository } from '../repository/userRepository';
 
 const router = Router();
 
@@ -24,12 +25,7 @@ router.post('/signup', async (req: Request, res: Response) => {
       parallelism: 4,
     });
 
-    const result = await pool.query(
-      'INSERT INTO users (email, auth_hash, kdf_salt) VALUES ($1, $2, $3) RETURNING id',
-      [email, serverHash, kdf_salt]
-    );
-
-    const userId = result.rows[0].id;
+    const userId = await userRepository.createUser(email, serverHash, kdf_salt);
     const token = generateToken(userId, email);
 
     console.log('✅ User registered:', email);
@@ -55,17 +51,12 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await pool.query(
-      'SELECT id, auth_hash, kdf_salt, failed_login_attempts, locked_until FROM users WHERE email = $1',
-      [email]
-    );
+    const user = await userRepository.findByEmail(email);
 
-    if (result.rows.length === 0) {
+    if (!user) {
       res.status(401).json({ error: 'Email atau password salah.' });
       return;
     }
-
-    const user = result.rows[0];
 
     // Check account lockout
     if (user.locked_until && new Date(user.locked_until) > new Date()) {
@@ -96,21 +87,12 @@ router.post('/login', async (req: Request, res: Response) => {
           timeCost: 3,
           parallelism: 4,
         });
-        await pool.query('UPDATE users SET auth_hash = $1 WHERE id = $2', [upgradedHash, user.id]);
+        await userRepository.updateAuthHash(user.id, upgradedHash);
       }
     }
 
     if (!isValid) {
-      // Increment failed attempts
-      const attempts = (user.failed_login_attempts || 0) + 1;
-      const lockUntil = attempts >= 5 
-        ? new Date(Date.now() + 15 * 60 * 1000).toISOString()  // Lock 15 min after 5 fails
-        : null;
-      
-      await pool.query(
-        'UPDATE users SET failed_login_attempts = $1, locked_until = $2 WHERE id = $3',
-        [attempts, lockUntil, user.id]
-      );
+      const attempts = await userRepository.recordFailedLogin(user.id, user.failed_login_attempts || 0);
 
       res.status(401).json({ 
         error: 'Email atau password salah.',
@@ -119,11 +101,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    // Reset failed attempts on success
-    await pool.query(
-      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1',
-      [user.id]
-    );
+    await userRepository.resetFailedLogins(user.id);
 
     const token = generateToken(user.id, email);
 
