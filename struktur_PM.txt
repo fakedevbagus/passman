@@ -1,0 +1,45 @@
+project/
+├── apps/
+│   ├── web/
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   ├── pages/
+│   │   │   ├── hooks/
+│   │   │   ├── store/        # Zustand/Redux
+│   │   │   └── utils/
+│   ├── extension/
+│   └── mobile/
+│
+├── packages/
+│   ├── crypto/
+│   ├── ui/
+│   ├── types/
+│   ├── config/              # 🔥 NEW (env, constants)
+│   └── utils/               # 🔥 NEW shared helpers
+│
+├── server/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── middleware/
+│   │   ├── services/
+│   │   ├── domain/          # 🔥 NEW (business logic)
+│   │   ├── repository/      # 🔥 NEW (DB layer)
+│   │   ├── lib/
+│   │   └── config/          # 🔥 NEW
+│   │
+│   ├── prisma/
+│   ├── tests/               # 🔥 NEW
+│   ├── Dockerfile           # 🔥 NEW
+│   └── docker-compose.yml
+│
+├── docs/                    # 🔥 NEW
+│   ├── architecture.md
+│   ├── api.md
+│
+├── .github/
+│   └── workflows/
+│
+├── .env.example            # 🔥 NEW
+├── turbo.json
+├── package.json
+└── README.md
